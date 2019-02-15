@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+"""
+Python cURL benchmark - Get info about connection
+"""
 import sys
 import argparse
 import json
@@ -5,6 +9,14 @@ from io import BytesIO
 
 import pycurl
 
+VERSION = (0, 1, 0)
+__version__ = '.'.join([str(i) for i in VERSION])
+__author__ = "Anthony Monthe (ZuluPro)"
+__email__ = 'amonthe@cloudspectator.com'
+__url__ = 'https://github.com/cloudspectatordevelopment/pycurlb'
+
+
+# https://curl.haxx.se/libcurl/c/curl_easy_getinfo.html
 INFO_KEYS = [
     'content_type',
     'ftp_entry_path',
@@ -39,6 +51,15 @@ INFO_KEYS = [
     'stdout',
     'os_errno',
     'ssl_engines',
+    'ssl_verifyresult',
+    'proxy_ssl_verifyresult',
+    'httpauth_avail',
+    'proxyauth_avail',
+    'filetime',
+    'cookielist',
+    'protocol',
+    'certinfo',
+    'condition_unmet',
 ]
 
 
@@ -63,9 +84,13 @@ class Curler:
 
     def perform(self, url, verbose=False, insecure=True, method=None):
         self.curl.setopt(self.curl.URL, url)
+        self.curl.setopt(self.curl.CUSTOMREQUEST, method)
         self.curl.setopt(self.curl.WRITEDATA, self.buffer)
         self.curl.setopt(self.curl.VERBOSE, verbose)
         self.curl.setopt(self.curl.SSL_VERIFYPEER, insecure)
+        # self.curl.setopt(self.curl.UPLOAD, True)
+        # self.curl.setopt(self.curl.READFUNCTION, BytesIO(b'\n').read)
+        # self.curl.setopt(self.curl.INFILESIZE, 0)
         self.curl.perform()
         return self._extract_info()
 
