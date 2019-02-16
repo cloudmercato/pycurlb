@@ -20,11 +20,13 @@ setup(
     license='BSD',
     url=pycurlb.__url__,
     keywords=keywords,
-    packages=find_packages(exclude=[]),
+    py_modules=['pycurlb'],
+    zip_safe=False,
     include_package_data=True,
+    platforms='any',
     entry_points={
         'console_scripts': [
-            'curlb = pycurlb.main',
+            'curlb = pycurlb:main',
         ]
     },
     # test_suite='runtests.main',

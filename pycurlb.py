@@ -82,12 +82,14 @@ class Curler:
                 pass
         return info
 
-    def perform(self, url, verbose=False, insecure=True, method=None):
+    def perform(self, url, verbose=False, insecure=True, method=None, compressed=False):
         self.curl.setopt(self.curl.URL, url)
         self.curl.setopt(self.curl.CUSTOMREQUEST, method)
         self.curl.setopt(self.curl.WRITEDATA, self.buffer)
         self.curl.setopt(self.curl.VERBOSE, verbose)
         self.curl.setopt(self.curl.SSL_VERIFYPEER, insecure)
+        if compressed:
+            self.curl.setopt(self.curl.ACCEPT_ENCODING, "gzip,deflate")
         # self.curl.setopt(self.curl.UPLOAD, True)
         # self.curl.setopt(self.curl.READFUNCTION, BytesIO(b'\n').read)
         # self.curl.setopt(self.curl.INFILESIZE, 0)
@@ -98,14 +100,32 @@ class Curler:
         self.curl.close()
 
 
+def get_version():
+    version = 'pycurlb/%s %s' % (__version__, pycurl.version)
+    return version
+
+
 def main():
     # Argparse
     parser = argparse.ArgumentParser(description="Get statistics from curl request")
     parser.add_argument('url')
-    parser.add_argument('-k', '--insecure', action='store_false')
-    parser.add_argument('-X', '--request')
-    parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('--compressed', action='store_true',
+                        help="Request compressed response")
+    parser.add_argument('-k', '--insecure', action='store_false',
+                        help="Allow insecure server connections when using SSL")
+    parser.add_argument('-X', '--request',
+                        help="Specify request command to use")
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help="Make the operation more talkative")
+    parser.add_argument('-V', '--version', action='store_const', const=get_version,
+                        default=None,
+                        help="Show version number and quit")
     args = parser.parse_args()
+    # Meta
+    if args.version is not None:
+        sys.stdout.write(args.version())
+        sys.stdout.write('\n')
+        sys.exit(0)
     # Perform
     curler = Curler()
     info = curler.perform(
@@ -113,6 +133,7 @@ def main():
         url=args.url,
         verbose=args.verbose,
         insecure=args.insecure,
+        compressed=args.compressed,
     )
     curler.close()
     # Print
