@@ -87,7 +87,8 @@ class Curler:
     def perform(self, url, verbose=False, insecure=True, method=None, compressed=False,
                 connect_timeout=300, connect_timeout_ms=None, data=None, headers=None,
                 user=None, user_agent=None, max_time=0, max_time_ms=None, cookie=None,
-                cookie_jar=None):
+                cookie_jar=None, get=False, ignore_content_length=False,
+                expect100_timeout_ms=1000, ip_resolve=pycurl.IPRESOLVE_WHATEVER):
         self.curl.setopt(self.curl.URL, url)
         self.curl.setopt(self.curl.CUSTOMREQUEST, method)
         self.curl.setopt(self.curl.WRITEDATA, self.response_buffer)
@@ -95,6 +96,10 @@ class Curler:
         self.curl.setopt(self.curl.SSL_VERIFYPEER, insecure)
         self.curl.setopt(self.curl.CONNECTTIMEOUT, connect_timeout)
         self.curl.setopt(self.curl.TIMEOUT, max_time)
+        self.curl.setopt(self.curl.IGNORE_CONTENT_LENGTH, ignore_content_length)
+        self.curl.setopt(self.curl.IPRESOLVE, ip_resolve)
+        if expect100_timeout_ms:
+            self.curl.setopt(self.curl.EXPECT_100_TIMEOUT_MS, expect100_timeout_ms)
         if cookie:
             self.curl.setopt(self.curl.COOKIE, cookie)
         if cookie_jar:
@@ -116,7 +121,8 @@ class Curler:
             self.request_buffer.seek(0)
             self.curl.setopt(self.curl.UPLOAD, True)
             self.curl.setopt(self.curl.READFUNCTION, self.request_buffer.read)
-        # self.curl.setopt(self.curl.INFILESIZE, 0)
+        if get:
+            self.curl.setopt(self.curl.HTTPGET, get)
         self.curl.perform()
         return self._extract_info()
 
@@ -146,12 +152,25 @@ def main():
                         help="Send cookies from string/file")
     parser.add_argument('-c', '--cookie-jar', default=None, metavar='<filename>',
                         help="Write cookies to <filename> after operation")
+    parser.add_argument('--expect100-timeout', default=1, metavar='<seconds>',
+                        help="How long to wait for 100-continue in seconds.")
+    parser.add_argument('--expect100-timeout-ms', default=None, metavar='<ms>',
+                        help="How long to wait for 100-continue in milliseconds.")
     parser.add_argument('-d', '--data', default=None, metavar='<data>',
                         help="HTTP POST data.")
-    parser.add_argument('-H', '--header', default=None, nargs='*', metavar='<header/@file>',
+    parser.add_argument('-g', '--get', action='store_true',
+                        help="Put the post data in the URL and use GET")
+    parser.add_argument('-H', '--header', default=[], nargs='*', metavar='<header/@file>',
                         help="Pass custom header(s) to server.")
+    parser.add_argument('--ignore-content-length', action='store_true',
+                        help="Allow insecure server connections when using SSL.")
     parser.add_argument('-k', '--insecure', action='store_false',
                         help="Allow insecure server connections when using SSL.")
+    parser.add_argument('-4', '--ipv4', default=pycurl.IPRESOLVE_WHATEVER, action='store_const',
+                        const=pycurl.IPRESOLVE_V4, dest="ip_resolve",
+                        help="Resolve names to IPv4 addresses.")
+    parser.add_argument('-6', '--ipv6', action='store_const', const=pycurl.IPRESOLVE_V6,
+                        dest="ip_resolve", help="Resolve names to IPv6 addresses.")
     parser.add_argument('-m', '--max-time', default=0, type=int, metavar='<seconds>',
                         help="Maximum time allowed for the transfer in seconds.")
     parser.add_argument('--max-time-ms', default=None, type=int, metavar='<ms>',
@@ -186,6 +205,8 @@ def main():
                 sys.stderr.write("Warning: Failed to open %s: %s" % (header, err))
         else:
             headers.append(header)
+    # Set misc
+    expect100_timeout_ms = args.expect100_timeout_ms or args.expect100_timeout * 1000
     # Perform
     curler = Curler()
     info = curler.perform(
@@ -194,11 +215,15 @@ def main():
         connect_timeout_ms=args.connect_timeout_ms,
         cookie=args.cookie,
         cookie_jar=args.cookie_jar,
+        expect100_timeout_ms=expect100_timeout_ms,
+        data=args.data,
+        get=args.get,
+        headers=headers,
+        ignore_content_length=args.ignore_content_length,
+        insecure=args.insecure,
+        ip_resolve=args.ip_resolve,
         max_time=args.max_time,
         max_time_ms=args.max_time_ms,
-        data=args.data,
-        headers=headers,
-        insecure=args.insecure,
         method=args.request,
         url=args.url,
         user=args.user,
