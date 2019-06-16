@@ -10,7 +10,7 @@ from shutil import copyfileobj
 
 import pycurl
 
-VERSION = (0, 2, 0)
+VERSION = (0, 2, 1)
 __version__ = '.'.join([str(i) for i in VERSION])
 __author__ = "Anthony Monthe (ZuluPro)"
 __email__ = 'amonthe@cloudspectator.com'
@@ -61,6 +61,7 @@ INFO_KEYS = [
     'protocol',
     'certinfo',
     'condition_unmet',
+    'scheme',
 ]
 
 
@@ -82,6 +83,8 @@ class Curler:
                 info[key] = value
             except ValueError:
                 pass
+            except TypeError:
+                pass
         return info
 
     def perform(self, url, verbose=False, insecure=True, method=None, compressed=False,
@@ -89,6 +92,12 @@ class Curler:
                 user=None, user_agent=None, max_time=0, max_time_ms=None, cookie=None,
                 cookie_jar=None, get=False, ignore_content_length=False,
                 expect100_timeout_ms=1000, ip_resolve=pycurl.IPRESOLVE_WHATEVER):
+        info = {
+            'method': method or 'GET',
+            'max_time': max_time,
+            'connect_timeout': connect_timeout,
+            'compressed': compressed,
+        }
         self.curl.setopt(self.curl.URL, url)
         self.curl.setopt(self.curl.CUSTOMREQUEST, method)
         self.curl.setopt(self.curl.WRITEDATA, self.response_buffer)
@@ -112,8 +121,10 @@ class Curler:
             self.curl.setopt(self.curl.USERPWD, user_agent)
         if connect_timeout_ms is not None:
             self.curl.setopt(self.curl.CONNECTTIMEOUT_MS, connect_timeout_ms)
+            info['connect_timeout'] = connect_timeout_ms / 1000
         if max_time_ms is not None:
             self.curl.setopt(self.curl.TIMEOUT_MS, max_time_ms)
+            info['max_time'] = max_time_ms / 1000
         if compressed:
             self.curl.setopt(self.curl.ACCEPT_ENCODING, "gzip,deflate")
         if data is not None:
@@ -124,7 +135,8 @@ class Curler:
         if get:
             self.curl.setopt(self.curl.HTTPGET, get)
         self.curl.perform()
-        return self._extract_info()
+        info.update(self._extract_info())
+        return info
 
     def close(self):
         self.curl.close()
