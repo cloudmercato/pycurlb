@@ -89,9 +89,10 @@ class Curler:
 
     def perform(self, url, verbose=False, insecure=True, method=None, compressed=False,
                 connect_timeout=300, connect_timeout_ms=None, data=None, headers=None,
+                http10=False, http11=False, http2=False,
                 user=None, user_agent=None, max_time=0, max_time_ms=None, cookie=None,
                 cookie_jar=None, get=False, ignore_content_length=False,
-                expect100_timeout_ms=1000, ip_resolve=pycurl.IPRESOLVE_WHATEVER):
+                expect100_timeout_ms=None, ip_resolve=pycurl.IPRESOLVE_WHATEVER):
         info = {
             'method': method or 'GET',
             'max_time': max_time,
@@ -105,8 +106,8 @@ class Curler:
         self.curl.setopt(self.curl.SSL_VERIFYPEER, insecure)
         self.curl.setopt(self.curl.CONNECTTIMEOUT, connect_timeout)
         self.curl.setopt(self.curl.TIMEOUT, max_time)
-        self.curl.setopt(self.curl.IGNORE_CONTENT_LENGTH, ignore_content_length)
         self.curl.setopt(self.curl.IPRESOLVE, ip_resolve)
+        self.curl.setopt(self.curl.IGNORE_CONTENT_LENGTH, ignore_content_length)
         if expect100_timeout_ms:
             self.curl.setopt(self.curl.EXPECT_100_TIMEOUT_MS, expect100_timeout_ms)
         if cookie:
@@ -115,6 +116,14 @@ class Curler:
             self.curl.setopt(self.curl.COOKIEJAR, cookie_jar)
         if headers:
             self.curl.setopt(self.curl.HTTPHEADER, headers)
+        if http10:
+            self.curl.setopt(pycurl.HTTP_VERSION, self.curl.CURL_HTTP_VERSION_1_0)
+        elif http11:
+            self.curl.setopt(pycurl.HTTP_VERSION, self.curl.CURL_HTTP_VERSION_1_1)
+        elif http2:
+            self.curl.setopt(pycurl.HTTP_VERSION, self.curl.CURL_HTTP_VERSION_2_0)
+        else:
+            self.curl.setopt(pycurl.HTTP_VERSION, pycurl.CURL_HTTP_VERSION_NONE)
         if user_agent is not None:
             self.curl.setopt(self.curl.USERAGENT, user_agent)
         if user is not None:
@@ -134,7 +143,10 @@ class Curler:
             self.curl.setopt(self.curl.READFUNCTION, self.request_buffer.read)
         if get:
             self.curl.setopt(self.curl.HTTPGET, get)
-        self.curl.perform()
+        try:
+            self.curl.perform()
+        except pycurl.error:
+            pass
         info.update(self._extract_info())
         return info
 
@@ -164,7 +176,7 @@ def main():
                         help="Send cookies from string/file")
     parser.add_argument('-c', '--cookie-jar', default=None, metavar='<filename>',
                         help="Write cookies to <filename> after operation")
-    parser.add_argument('--expect100-timeout', default=1, metavar='<seconds>',
+    parser.add_argument('--expect100-timeout', default=None, metavar='<seconds>',
                         help="How long to wait for 100-continue in seconds.")
     parser.add_argument('--expect100-timeout-ms', default=None, metavar='<ms>',
                         help="How long to wait for 100-continue in milliseconds.")
@@ -174,6 +186,12 @@ def main():
                         help="Put the post data in the URL and use GET")
     parser.add_argument('-H', '--header', default=[], nargs='*', metavar='<header/@file>',
                         help="Pass custom header(s) to server.")
+    parser.add_argument('-0', '--http1.0', action='store_true', dest="http10",
+                        help="Use HTTP 1.0")
+    parser.add_argument('--http1.1', action='store_true', dest="http11",
+                        help="Use HTTP 1.1")
+    parser.add_argument('--http2', action='store_true', dest="http2",
+                        help="Use HTTP 2")
     parser.add_argument('--ignore-content-length', action='store_true',
                         help="Allow insecure server connections when using SSL.")
     parser.add_argument('-k', '--insecure', action='store_false',
@@ -218,7 +236,10 @@ def main():
         else:
             headers.append(header)
     # Set misc
-    expect100_timeout_ms = args.expect100_timeout_ms or args.expect100_timeout * 1000
+    if args.expect100_timeout_ms or args.expect100_timeout:
+        expect100_timeout_ms = args.expect100_timeout_ms or args.expect100_timeout * 1000
+    else:
+        expect100_timeout_ms = None
     # Perform
     curler = Curler()
     info = curler.perform(
