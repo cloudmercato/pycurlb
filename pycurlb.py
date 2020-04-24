@@ -8,9 +8,12 @@ import json
 from io import BytesIO
 from shutil import copyfileobj
 
-import pycurl
+try:
+    import pycurl
+except ImportError:
+    pycurl = None
 
-VERSION = (0, 2, 1)
+VERSION = (0, 2, 2)
 __version__ = '.'.join([str(i) for i in VERSION])
 __author__ = "Anthony Monthe (ZuluPro)"
 __email__ = 'amonthe@cloudspectator.com'
@@ -92,7 +95,8 @@ class Curler:
                 http10=False, http11=False, http2=False,
                 user=None, user_agent=None, max_time=0, max_time_ms=None, cookie=None,
                 cookie_jar=None, get=False, ignore_content_length=False,
-                expect100_timeout_ms=None, ip_resolve=pycurl.IPRESOLVE_WHATEVER):
+                expect100_timeout_ms=None, ip_resolve=None):
+        ip_resolve = ip_resolve or pycurl.IPRESOLVE_WHATEVER
         info = {
             'method': method or 'GET',
             'max_time': max_time,
