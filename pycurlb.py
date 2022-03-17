@@ -16,8 +16,8 @@ except ImportError:
 VERSION = (0, 2, 2)
 __version__ = '.'.join([str(i) for i in VERSION])
 __author__ = "Anthony Monthe (ZuluPro)"
-__email__ = 'amonthe@cloudspectator.com'
-__url__ = 'https://github.com/cloudspectatordevelopment/pycurlb'
+__email__ = 'anthony@cloud-mercato.com'
+__url__ = 'https://github.com/cloudmercato/pycurlb'
 
 
 # https://curl.haxx.se/libcurl/c/curl_easy_getinfo.html
@@ -90,12 +90,33 @@ class Curler:
                 pass
         return info
 
-    def perform(self, url, verbose=False, insecure=True, method=None, compressed=False,
-                connect_timeout=300, connect_timeout_ms=None, data=None, headers=None,
-                http10=False, http11=False, http2=False,
-                user=None, user_agent=None, max_time=0, max_time_ms=None, cookie=None,
-                cookie_jar=None, get=False, ignore_content_length=False,
-                expect100_timeout_ms=None, ip_resolve=None):
+    def perform(
+            self,
+            url,
+            verbose=False,
+            insecure=True,
+            method=None,
+            compressed=False,
+            connect_timeout=300,
+            connect_timeout_ms=None,
+            accept_timeout_ms=None,
+            data=None,
+            headers=None,
+            http10=False,
+            http11=False,
+            http2=False,
+            user=None,
+            user_agent=None,
+            max_time=0,
+            max_time_ms=None,
+            cookie=None,
+            cookie_jar=None,
+            get=False,
+            ignore_content_length=False,
+            expect100_timeout_ms=None,
+            ip_resolve=None,
+            forbid_reuse=0,
+        ):
         ip_resolve = ip_resolve or pycurl.IPRESOLVE_WHATEVER
         info = {
             'method': method or 'GET',
@@ -112,6 +133,9 @@ class Curler:
         self.curl.setopt(self.curl.TIMEOUT, max_time)
         self.curl.setopt(self.curl.IPRESOLVE, ip_resolve)
         self.curl.setopt(self.curl.IGNORE_CONTENT_LENGTH, ignore_content_length)
+        self.curl.setopt(self.curl.FORBID_REUSE, forbid_reuse)
+        if accept_timeout_ms:
+            self.curl.setopt(self.curl.ACCEPTTIMEOUT_MS, accept_timeout_ms)
         if expect100_timeout_ms:
             self.curl.setopt(self.curl.EXPECT_100_TIMEOUT_MS, expect100_timeout_ms)
         if cookie:
@@ -176,6 +200,10 @@ def main():
                         help="Maximum time allowed for connection in seconds.")
     parser.add_argument('--connect-timeout-ms', default=None, type=int, metavar='<ms>',
                         help="Maximum time allowed for connection in milliseconds.")
+    parser.add_argument('--accept-timeout-ms', default=None, type=int, metavar='<ms>',
+                        help="Timeout for waiting for the server's connect back to be accepted.")
+    parser.add_argument('--forbid-reuse', action='store_true',
+                        help="Make libcurl explicitly close the connection when done with the transfer.")
     parser.add_argument('-b', '--cookie', default=None, metavar='<data>',
                         help="Send cookies from string/file")
     parser.add_argument('-c', '--cookie-jar', default=None, metavar='<filename>',
@@ -250,6 +278,7 @@ def main():
         compressed=args.compressed,
         connect_timeout=args.connect_timeout,
         connect_timeout_ms=args.connect_timeout_ms,
+        accept_timeout_ms=args.accept_timeout_ms,
         cookie=args.cookie,
         cookie_jar=args.cookie_jar,
         expect100_timeout_ms=expect100_timeout_ms,
@@ -265,6 +294,7 @@ def main():
         url=args.url,
         user=args.user,
         user_agent=args.user_agent,
+        forbid_reuse=args.forbid_reuse,
         verbose=args.verbose,
     )
     curler.close()
