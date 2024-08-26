@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# pep8: max-line-length=120
 """
 Python cURL benchmark - Get info about connection
 """
@@ -7,10 +8,12 @@ import argparse
 import json
 from io import BytesIO
 from shutil import copyfileobj
+import warnings
 
 try:
     import pycurl
-except ImportError:
+except (ModuleNotFoundError, ImportError) as err:
+    warnings.warn(err)
     pycurl = None
 
 VERSION = (0, 2, 2)
@@ -91,32 +94,32 @@ class Curler:
         return info
 
     def perform(
-            self,
-            url,
-            verbose=False,
-            insecure=True,
-            method=None,
-            compressed=False,
-            connect_timeout=300,
-            connect_timeout_ms=None,
-            accept_timeout_ms=None,
-            data=None,
-            headers=None,
-            http10=False,
-            http11=False,
-            http2=False,
-            user=None,
-            user_agent=None,
-            max_time=0,
-            max_time_ms=None,
-            cookie=None,
-            cookie_jar=None,
-            get=False,
-            ignore_content_length=False,
-            expect100_timeout_ms=None,
-            ip_resolve=None,
-            forbid_reuse=0,
-        ):
+        self,
+        url,
+        verbose=False,
+        insecure=True,
+        method=None,
+        compressed=False,
+        connect_timeout=300,
+        connect_timeout_ms=None,
+        accept_timeout_ms=None,
+        data=None,
+        headers=None,
+        http10=False,
+        http11=False,
+        http2=False,
+        user=None,
+        user_agent=None,
+        max_time=0,
+        max_time_ms=None,
+        cookie=None,
+        cookie_jar=None,
+        get=False,
+        ignore_content_length=False,
+        expect100_timeout_ms=None,
+        ip_resolve=None,
+        forbid_reuse=0,
+    ):
         ip_resolve = ip_resolve or pycurl.IPRESOLVE_WHATEVER
         info = {
             'method': method or 'GET',
@@ -128,7 +131,7 @@ class Curler:
         self.curl.setopt(self.curl.CUSTOMREQUEST, method)
         self.curl.setopt(self.curl.WRITEDATA, self.response_buffer)
         self.curl.setopt(self.curl.VERBOSE, verbose)
-        self.curl.setopt(self.curl.SSL_VERIFYPEER, insecure)
+        self.curl.setopt(self.curl.SSL_VERIFYPEER, not insecure)
         self.curl.setopt(self.curl.CONNECTTIMEOUT, connect_timeout)
         self.curl.setopt(self.curl.TIMEOUT, max_time)
         self.curl.setopt(self.curl.IPRESOLVE, ip_resolve)
@@ -225,7 +228,7 @@ def main():
     parser.add_argument('--http2', action='store_true', dest="http2",
                         help="Use HTTP 2")
     parser.add_argument('--ignore-content-length', action='store_true',
-                        help="Allow insecure server connections when using SSL.")
+                        help="Do not include the Content-Length header")
     parser.add_argument('-k', '--insecure', action='store_false',
                         help="Allow insecure server connections when using SSL.")
     parser.add_argument('-4', '--ipv4', default=pycurl.IPRESOLVE_WHATEVER, action='store_const',
@@ -297,6 +300,7 @@ def main():
         forbid_reuse=args.forbid_reuse,
         verbose=args.verbose,
     )
+    print(info)
     curler.close()
     # Print
     sys.stdout.write(json.dumps(info, indent=2, sort_keys=True))
@@ -304,6 +308,7 @@ def main():
         curler.response_buffer.seek(0)
         with open(args.output, 'wb') as dst_file:
             copyfileobj(curler.response_buffer, dst_file)
+
 
 if __name__ == '__main__':
     main()
